@@ -37,3 +37,4 @@ build/
 ### Local ###
 /mybatis-generator/
 *.env
+logs/
