@@ -166,7 +166,7 @@ pipeline {
                 export ALIYUN_OSS_REGION="${ALIYUN_OSS_REGION}"
                 export ALIYUN_OSS_FOLDER="${ALIYUN_OSS_FOLDER}"
 
-                nohup java \${JAVA_OPTS} -jar ${BASE_DIR}/${JAR_NAME} \${SPRING_OPTS} > ${BASE_DIR}/startup.log 2>&1 &
+                BUILD_ID=dontKillMe nohup java \${JAVA_OPTS} -jar ${BASE_DIR}/${JAR_NAME} \${SPRING_OPTS} > ${BASE_DIR}/startup.log 2>&1 &
 
                 sleep 5
                 # PID=\$(ps -ef | grep '${JAR_NAME}' | grep -v grep | awk '{print \$2}')
