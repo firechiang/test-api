@@ -146,7 +146,7 @@ pipeline {
                 sh """
                 JAVA_OPTS="-server"
                 JAVA_OPTS="\${JAVA_OPTS} -Xms${params.JVM_XMS} -Xmx${params.JVM_XMX}"
-                JAVA_OPTS="\${JAVA_OPTS} -XX:+UseZGC"
+                JAVA_OPTS="\${JAVA_OPTS} -XX:+UseSerialGC"
                 JAVA_OPTS="\${JAVA_OPTS} -Dfile.encoding=UTF-8"
 
                 SPRING_OPTS=""
@@ -171,17 +171,24 @@ pipeline {
                 # 创建日志目录
                 mkdir -p ${LOG_DIR}
                 
-                JENKINS_NODE_COOKIE=dontKillMe
-                nohup java \${JAVA_OPTS} -jar ${BASE_DIR}/${JAR_NAME} \${SPRING_OPTS} > ${BASE_DIR}/startup.log 2>&1 &
+                JENKINS_NODE_COOKIE=dontKillMe nohup java \${JAVA_OPTS} -jar ${BASE_DIR}/${JAR_NAME} \${SPRING_OPTS} > ${BASE_DIR}/startup.log 2>&1 &
 
-                sleep 5
-                # PID=\$(ps -ef | grep '${JAR_NAME}' | grep -v grep | awk '{print \$2}')
-                PID=\$(lsof -t -i:${params.SERVER_PORT} | head -1 || true)
-                if [ -n "\$PID" ]; then
-                    cat ${BASE_DIR}/startup.log
-                    echo "[INFO] ${APP_NAME} 启动成功 (PID: \$PID)"
-                else
-                    echo "[ERROR] ${APP_NAME} 启动失败，请查看日志"
+                # 轮询端口判断服务是否启动成功，最多等待 15 秒
+                MAX_WAIT=15
+                WAIT=0
+                while [ \$WAIT -lt \$MAX_WAIT ]; do
+                    if lsof -t -i:${params.SERVER_PORT} > /dev/null 2>&1; then
+                        echo "[INFO] ${APP_NAME} 启动成功！"
+                        cat ${BASE_DIR}/startup.log
+                        break
+                    fi
+                    sleep 3
+                    WAIT=\$((WAIT + 3))
+                    echo "[INFO] 等待服务启动... (\${WAIT}s)"
+                done
+
+                if [ \$WAIT -ge \$MAX_WAIT ]; then
+                    echo "[ERROR] ${APP_NAME} 启动超时（\${MAX_WAIT}s），请查看日志"
                     cat ${BASE_DIR}/startup.log
                     exit 1
                 fi
