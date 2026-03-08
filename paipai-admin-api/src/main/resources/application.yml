@@ -1,0 +1,32 @@
+server:
+  servlet:
+    context-path: /admin-api
+    # 禁用 Cookies
+    session:
+      tracking-modes: []
+      cookie:
+        max-age: 0
+  port: 9091
+  http2:
+    enabled: true
+
+spring:
+  threads:
+    virtual:
+      enabled: true
+  application:
+    name: paipai-admin-api
+  profiles:
+    active:
+      - dev
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
+  jackson:
+    locale: zh_CN
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+  web:
+    resources:
+      add-mappings: false

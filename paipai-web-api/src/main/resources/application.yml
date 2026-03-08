@@ -1,0 +1,40 @@
+server:
+  servlet:
+    context-path: /web-api
+    # 禁用 Cookies
+    session:
+      tracking-modes: []
+      cookie:
+        max-age: 0
+  port: 9090
+  http2:
+    enabled: true
+
+spring:
+  threads:
+    virtual:
+      enabled: true
+  application:
+    name: paipai-web-api
+  profiles:
+    active:
+      - dev
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
+  jackson:
+    locale: zh_CN
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+  web:
+    resources:
+      add-mappings: false
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v1/docs
+  swagger-ui:
+    enabled: true
+    default-models-expand-depth: -1

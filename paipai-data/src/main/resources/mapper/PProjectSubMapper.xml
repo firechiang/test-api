@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.paipai.data.mapper.PProjectSubMapper">
+
+    <insert id="insert" parameterType="com.paipai.data.entity.PProjectSub">
+        insert ignore into p_project_sub
+            (user_id,
+             project_id,
+             create_time)
+        values
+            (#{userId,jdbcType=BIGINT},
+             #{projectId,jdbcType=BIGINT},
+             #{createTime,jdbcType=BIGINT})
+    </insert>
+
+    <delete id="deleteBy" parameterType="com.paipai.data.entity.PProjectSub">
+        delete from p_project_sub
+        where user_id = #{userId}
+        and project_id = #{projectId}
+    </delete>
+
+</mapper>

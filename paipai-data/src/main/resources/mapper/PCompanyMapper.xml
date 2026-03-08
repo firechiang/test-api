@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.paipai.data.mapper.PCompanyMapper">
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultType="com.paipai.data.entity.PCompany">
+        select id,
+               cname,
+               create_date,
+               website,
+               reg_number,
+               csize,
+               capital,
+               business,
+               crowd,
+               source_n,
+               source_w,
+               update_time
+        from p_company
+        where id = #{id,jdbcType=BIGINT}
+    </select>
+
+    <insert id="insert" parameterType="com.paipai.data.entity.PCompany">
+        insert into p_company
+            (cname,
+             create_date,
+             website,
+             reg_number,
+             csize,
+             capital,
+             business,
+             crowd,
+             source_n,
+             source_w,
+             update_time)
+        values
+            (#{cname,jdbcType=VARCHAR},
+             #{createDate,jdbcType=VARCHAR},
+             #{website,jdbcType=VARCHAR},
+             #{regNumber,jdbcType=VARCHAR},
+             #{csize,jdbcType=VARCHAR},
+             #{capital,jdbcType=VARCHAR},
+             #{business,jdbcType=VARCHAR},
+             #{crowd,jdbcType=VARCHAR},
+             #{sourceN,jdbcType=VARCHAR},
+             #{sourceW,jdbcType=VARCHAR},
+             #{updateTime,jdbcType=BIGINT})
+    </insert>
+
+    <update id="updateByPrimaryKeySelective" parameterType="com.paipai.data.entity.PCompany">
+        update p_company
+        <set>
+            <if test="cname != null">
+                cname = #{cname,jdbcType=VARCHAR},
+            </if>
+            <if test="createDate != null">
+                create_date = #{createDate,jdbcType=VARCHAR},
+            </if>
+            <if test="website != null">
+                website = #{website,jdbcType=VARCHAR},
+            </if>
+            <if test="regNumber != null">
+                reg_number = #{regNumber,jdbcType=VARCHAR},
+            </if>
+            <if test="csize != null">
+                csize = #{csize,jdbcType=VARCHAR},
+            </if>
+            <if test="capital != null">
+                capital = #{capital,jdbcType=VARCHAR},
+            </if>
+            <if test="business != null">
+                business = #{business,jdbcType=VARCHAR},
+            </if>
+            <if test="crowd != null">
+                crowd = #{crowd,jdbcType=VARCHAR},
+            </if>
+            <if test="sourceN != null">
+                source_n = #{sourceN,jdbcType=VARCHAR},
+            </if>
+            <if test="sourceW != null">
+                source_w = #{sourceW,jdbcType=VARCHAR},
+            </if>
+            <if test="updateTime != null">
+                update_time = #{updateTime,jdbcType=BIGINT},
+            </if>
+        </set>
+        where id = #{id,jdbcType=BIGINT}
+    </update>
+
+    <update id="updateByPrimaryKey" parameterType="com.paipai.data.entity.PCompany">
+        update p_company
+        set cname       = #{cname,jdbcType=VARCHAR},
+            create_date = #{createDate,jdbcType=VARCHAR},
+            website     = #{website,jdbcType=VARCHAR},
+            reg_number  = #{regNumber,jdbcType=VARCHAR},
+            csize       = #{csize,jdbcType=VARCHAR},
+            capital     = #{capital,jdbcType=VARCHAR},
+            business    = #{business,jdbcType=VARCHAR},
+            crowd       = #{crowd,jdbcType=VARCHAR},
+            source_n    = #{sourceN,jdbcType=VARCHAR},
+            source_w    = #{sourceW,jdbcType=VARCHAR},
+            update_time = #{updateTime,jdbcType=BIGINT}
+        where id = #{id,jdbcType=BIGINT}
+    </update>
+
+</mapper>
