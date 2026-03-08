@@ -3,7 +3,7 @@
 	<include resource="org/springframework/boot/logging/logback/defaults.xml" />
 	<include resource="org/springframework/boot/logging/logback/console-appender.xml" />
 	<springProperty scope="context" name="LOG_NAME" source="spring.application.name"/>
-    <property name="LOG_HOME" value="logs" />
+    <property name="LOG_HOME" value="${LOG_PATH:-logs}" />
     <property name="LOG_BACK" value="back" />
     <appender name="FILE"  class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_HOME}/${LOG_NAME}.log</file>

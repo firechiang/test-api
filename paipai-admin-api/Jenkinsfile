@@ -14,6 +14,8 @@ pipeline {
         REPO_URL = "https://github.com/firechiang/test-api.git"
         // 定义项目路径（注意：该目录要手动创建）
         BASE_DIR = "/home/project-java/${APP_NAME}"
+        // 日志目录
+        LOG_DIR = "${BASE_DIR}/logs"
         // 备份目录名称（注意：该文件夹要手动创建在${BASE_DIR}目录下）
         BACKUP_NAME = "package-backup"
         // 可执行jar包文件名
@@ -153,6 +155,7 @@ pipeline {
                 SPRING_OPTS="\${SPRING_OPTS} --logging.level.root=WARN"
                 SPRING_OPTS="\${SPRING_OPTS} --logging.level.com.paipai=INFO"
                 SPRING_OPTS="\${SPRING_OPTS} --spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver"
+                SPRING_OPTS="\${SPRING_OPTS} --logging.file.path=${LOG_DIR}"
                 # 注意：这个Data Source配置SpringBoot会自动读取
                 export SPRING_DATASOURCE_URL="${SQL_DATASOURCE_URL}"
                 export SPRING_DATASOURCE_USERNAME="${SQL_DATASOURCE_UNAME}"
@@ -165,8 +168,11 @@ pipeline {
                 export ALIYUN_OSS_BUCKET_URL="${ALIYUN_OSS_BUCKET_URL}"
                 export ALIYUN_OSS_REGION="${ALIYUN_OSS_REGION}"
                 export ALIYUN_OSS_FOLDER="${ALIYUN_OSS_FOLDER}"
-
-                BUILD_ID=dontKillMe nohup java \${JAVA_OPTS} -jar ${BASE_DIR}/${JAR_NAME} \${SPRING_OPTS} > ${BASE_DIR}/startup.log 2>&1 &
+                # 创建日志目录
+                mkdir -p ${LOG_DIR}
+                
+                JENKINS_NODE_COOKIE=dontKillMe
+                nohup java \${JAVA_OPTS} -jar ${BASE_DIR}/${JAR_NAME} \${SPRING_OPTS} > ${BASE_DIR}/startup.log 2>&1 &
 
                 sleep 5
                 # PID=\$(ps -ef | grep '${JAR_NAME}' | grep -v grep | awk '{print \$2}')
