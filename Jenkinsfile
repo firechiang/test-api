@@ -1,0 +1,195 @@
+pipeline {
+    // 允许在任何可用节点运行
+    agent any
+    // 配置要使用的工具
+    tools {
+        maven 'MAVEN_3.9.13'
+        jdk 'JAVA_25' 
+    }
+
+    environment {
+    	// 项目或模块名称
+    	APP_NAME = "paipai-admin-api"
+        // 定义 GitHub 仓库地址
+        REPO_URL = "https://github.com/firechiang/test-api.git"
+        // 定义项目路径（注意：该目录要手动创建）
+        BASE_DIR = "/home/project-java/${APP_NAME}"
+        // 备份目录名称（注意：该文件夹要手动创建在${BASE_DIR}目录下）
+        BACKUP_NAME = "package-backup"
+        // 可执行jar包文件名
+        JAR_NAME = "${APP_NAME}.jar"
+        // jar包备份文件名（注意：该文件名和项目打包后的文件名一致）
+        BACKUP_JAR_NAME = "${APP_NAME}-1.0-SNAPSHOT.jar"
+        
+        // --------- 数据库 配置 ---------
+        SQL_DATASOURCE_URL = credentials('SQL_DATASOURCE_URL')
+        SQL_DATASOURCE_UNAME = credentials('SQL_DATASOURCE_UNAME')
+        SQL_DATASOURCE_UPWD = credentials('SQL_DATASOURCE_UPWD')
+
+        // --------- 阿里云 配置 ---------
+        ALIYUN_ENDPOINT = credentials('ALIYUN_ENDPOINT')
+        ALIYUN_ACCESSKEY_ID = credentials('ALIYUN_ACCESSKEY_ID')
+        ALIYUN_ACCESSKEY_SECRET = credentials('ALIYUN_ACCESSKEY_SECRET')
+                
+        ALIYUN_OSS_BUCKET_URL = credentials('ALIYUN_OSS_BUCKET_URL')
+        ALIYUN_OSS_BUCKET_NAME = 'test-paipai'
+        ALIYUN_OSS_REGION = 'cn-shenzhen'
+        ALIYUN_OSS_FOLDER = 'dev'
+    }
+
+    parameters {
+        choice(name: 'ACTION', choices: ['deploy', 'restart', 'stop'], description: '操作类型')
+        string(name: 'SERVER_PORT', defaultValue: '8093', description: '应用端口')
+        string(name: 'JVM_XMS', defaultValue: '512m', description: 'JVM 初始堆内存')
+        string(name: 'JVM_XMX', defaultValue: '512m', description: 'JVM 最大堆内存')
+    }
+
+    stages {
+
+        stage('Checkout') {
+            when { expression { params.ACTION == 'deploy' } }
+            steps {
+                echo '[INFO] 正在从 GitHub 拉取代码...'
+                git branch: 'main', url: "${REPO_URL}"
+            }
+        }
+
+        stage('Build') {
+            when { expression { params.ACTION == 'deploy' } }
+            steps {
+            	echo '[INFO] 正在清理并打包项目...'
+                sh "mvn clean package -pl ${APP_NAME} -am -DskipTests -q"
+            }
+        }
+        
+        stage('Move & Backup') {
+            when { expression { params.ACTION == 'deploy' } }
+            steps {
+                script {
+                    // 生成时间戳字符串 (格式: 20260308_1345)
+                    def timestamp = sh(script: "date +%Y%m%d_%H%M%S", returnStdout: true).trim()
+                    
+                    // 带时间戳的备份目录
+                    def backupPath = "${BASE_DIR}/${BACKUP_NAME}/${timestamp}"
+                    
+                    // 创建带时间戳的备份目录
+                    sh "mkdir -p ${backupPath}"
+                    
+                    // 移动打包好的文件到带时间戳的备份目录
+                    sh "cp ${WORKSPACE}/${APP_NAME}/target/${BACKUP_JAR_NAME} ${backupPath}"
+                    
+                    // 定位到备份主目录
+                    dir("${BASE_DIR}/${BACKUP_NAME}") {
+                        // 获取 20 开头的目录列表，存入数组
+                        def folders = sh(script: "ls -1dt 20*", returnStdout: true).trim().split('\n')
+                        if (folders.size() > 5) {
+                            echo "[INFO] 发现 ${folders.size()} 个版本，正在清理旧版本..."
+                            sh "ls -1dt 20* | tail -n +6 | xargs -r rm -rf"
+                        } else {
+                            echo "[INFO] 当前仅有 ${folders.size()} 个版本，无需清理。"
+                        }
+                    }
+                    
+                    // 将最新的打包文件软链接到项目可执行文件
+                    sh "ln -sfn ${backupPath}/${BACKUP_JAR_NAME} ${BASE_DIR}/${JAR_NAME}"
+                }
+            }
+        }
+
+        stage('Stop') {
+        	when { expression { params.ACTION == 'stop' } }
+            steps {
+                sh """
+                # PID=\$(ps -ef | grep '${JAR_NAME}' | grep -v grep | awk '{print \$2}')
+                PID=\$(lsof -t -i:${params.SERVER_PORT} | head -1 || true)
+                if [ -n "\$PID" ]; then
+                    echo "[INFO] 正在停止旧服务 (PID: \$PID) ..."
+                    kill \$PID
+                    sleep 5
+                    # 如果还没停止，强制 kill
+                    if ps -p \$PID > /dev/null 2>&1; then
+                        echo "[WARN] 优雅关闭超时，强制停止 ..."
+                        kill -9 \$PID
+                        sleep 1
+                    fi
+                    echo "[INFO] 旧服务已停止"
+                else
+                    echo "[INFO] 无运行中的服务"
+                fi
+                """
+            }
+        }
+
+        stage('Start') {
+            when { expression { params.ACTION != 'stop' } }
+            steps {
+                // 启动前先停止旧服务
+                sh """
+                # PID=\$(ps -ef | grep '${JAR_NAME}' | grep -v grep | awk '{print \$2}')
+                PID=\$(lsof -t -i:${params.SERVER_PORT} | head -1 || true)
+                if [ -n "\$PID" ]; then
+                    echo "[INFO] 检测到旧服务正在运行，先停止 (PID: \$PID) ..."
+                    kill \$PID
+                    sleep 5
+                    if ps -p \$PID > /dev/null 2>&1; then
+                        echo "[WARN] 优雅关闭超时，强制停止 ..."
+                        kill -9 \$PID
+                        sleep 1
+                    fi
+                    echo "[INFO] 旧服务已停止"
+                fi
+                """
+                
+                // 启动服务
+                sh """
+                JAVA_OPTS="-server"
+                JAVA_OPTS="\${JAVA_OPTS} -Xms${params.JVM_XMS} -Xmx${params.JVM_XMX}"
+                JAVA_OPTS="\${JAVA_OPTS} -XX:+UseZGC"
+                JAVA_OPTS="\${JAVA_OPTS} -Dfile.encoding=UTF-8"
+
+                SPRING_OPTS=""
+                SPRING_OPTS="\${SPRING_OPTS} --spring.profiles.active=prod"
+                SPRING_OPTS="\${SPRING_OPTS} --server.port=${params.SERVER_PORT}"
+                SPRING_OPTS="\${SPRING_OPTS} --logging.level.root=WARN"
+                SPRING_OPTS="\${SPRING_OPTS} --logging.level.com.paipai=INFO"
+                SPRING_OPTS="\${SPRING_OPTS} --spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver"
+                # 注意：这个Data Source配置SpringBoot会自动读取
+                export SPRING_DATASOURCE_URL="${SQL_DATASOURCE_URL}"
+                export SPRING_DATASOURCE_USERNAME="${SQL_DATASOURCE_UNAME}"
+                export SPRING_DATASOURCE_PASSWORD="${SQL_DATASOURCE_UPWD}"
+                
+                export ALIYUN_ACCESSKEY_ID="${ALIYUN_ACCESSKEY_ID}"
+                export ALIYUN_ACCESSKEY_SECRET="${ALIYUN_ACCESSKEY_SECRET}"
+                export ALIYUN_ENDPOINT="${ALIYUN_ENDPOINT}"
+                export ALIYUN_OSS_BUCKET_NAME="${ALIYUN_OSS_BUCKET_NAME}"
+                export ALIYUN_OSS_BUCKET_URL="${ALIYUN_OSS_BUCKET_URL}"
+                export ALIYUN_OSS_REGION="${ALIYUN_OSS_REGION}"
+                export ALIYUN_OSS_FOLDER="${ALIYUN_OSS_FOLDER}"
+
+                nohup java \${JAVA_OPTS} -jar ${BASE_DIR}/${JAR_NAME} \${SPRING_OPTS} > ${BASE_DIR}/startup.log 2>&1 &
+
+                sleep 5
+                # PID=\$(ps -ef | grep '${JAR_NAME}' | grep -v grep | awk '{print \$2}')
+                PID=\$(lsof -t -i:${params.SERVER_PORT} | head -1 || true)
+                if [ -n "\$PID" ]; then
+                    cat ${BASE_DIR}/startup.log
+                    echo "[INFO] ${APP_NAME} 启动成功 (PID: \$PID)"
+                else
+                    echo "[ERROR] ${APP_NAME} 启动失败，请查看日志"
+                    cat ${BASE_DIR}/startup.log
+                    exit 1
+                fi
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ ${APP_NAME} ${params.ACTION} 完成"
+        }
+        failure {
+            echo "❌ ${APP_NAME} ${params.ACTION} 失败"
+        }
+    }
+}
