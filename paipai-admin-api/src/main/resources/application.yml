@@ -1,6 +1,6 @@
 server:
   servlet:
-    context-path: /admin-api
+    context-path: /api
     # 禁用 Cookies
     session:
       tracking-modes: []
